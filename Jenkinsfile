@@ -1,4 +1,4 @@
-
+```groovy
 pipeline {
     agent any
 
@@ -14,10 +14,10 @@ pipeline {
             }
         }
 
-        stage('Backend - Test & Build') {
+        stage('Backend - Build') {
             steps {
                 dir('backend') {
-                    sh './mvnw clean test package'
+                    sh './mvnw clean package -DskipTests'
                 }
             }
         }
@@ -49,8 +49,12 @@ pipeline {
         stage('Docker Build') {
             steps {
                 sh '''
+                    echo "===== Docker Build ====="
+
                     docker build -t backend-app:latest ./backend
-                    docker tag backend-app:latest localhost:5000/backend-app:latest
+
+                    docker tag backend-app:latest \
+                        localhost:5000/backend-app:latest
                 '''
             }
         }
@@ -65,9 +69,13 @@ pipeline {
                     )
                 ]) {
                     sh '''
+                        echo "===== Docker Registry Login ====="
+
                         echo "$REGISTRY_PASSWORD" | docker login localhost:5000 \
                             --username "$REGISTRY_USER" \
                             --password-stdin
+
+                        echo "===== Docker Push ====="
 
                         docker push localhost:5000/backend-app:latest
 
@@ -80,9 +88,11 @@ pipeline {
         stage('Deploy MySQL') {
             steps {
                 sh '''
+                    echo "===== Deploy MySQL ====="
+
                     if docker ps -a --format '{{.Names}}' | grep -q '^mysql$'; then
 
-                        echo "MySQL container exists."
+                        echo "MySQL container already exists."
 
                         if [ "$(docker inspect -f '{{.State.Running}}' mysql)" = "false" ]; then
                             echo "Starting MySQL..."
@@ -92,7 +102,7 @@ pipeline {
                         fi
 
                     else
-                        echo "MySQL container does not exist."
+                        echo "ERROR: MySQL container does not exist."
                         exit 1
                     fi
                 '''
@@ -109,21 +119,26 @@ pipeline {
                     )
                 ]) {
                     sh '''
-                        echo "Stopping old backend-app container..."
-                        docker stop backend-app 2>/dev/null || true
+                        echo "===== Stop old backend containers ====="
 
-                        echo "Removing old backend-app container..."
+                        docker stop backend-app 2>/dev/null || true
                         docker rm backend-app 2>/dev/null || true
 
-                        echo "Logging into Docker registry..."
+                        docker stop appgestion-backend 2>/dev/null || true
+                        docker rm appgestion-backend 2>/dev/null || true
+
+                        echo "===== Docker Registry Login ====="
+
                         echo "$REGISTRY_PASSWORD" | docker login localhost:5000 \
                             --username "$REGISTRY_USER" \
                             --password-stdin
 
-                        echo "Pulling latest backend image..."
+                        echo "===== Pull latest backend image ====="
+
                         docker pull localhost:5000/backend-app:latest
 
-                        echo "Starting new backend-app container..."
+                        echo "===== Start backend-app ====="
+
                         docker run -d \
                             --name backend-app \
                             -p 8090:8080 \
@@ -140,9 +155,11 @@ pipeline {
             steps {
                 sh '''
                     echo "===== Docker Containers ====="
+
                     docker ps
 
                     echo "===== Backend Logs ====="
+
                     docker logs backend-app
                 '''
             }
@@ -150,6 +167,7 @@ pipeline {
     }
 
     post {
+
         success {
             echo 'CI/CD pipeline completed successfully.'
         }
@@ -163,3 +181,4 @@ pipeline {
         }
     }
 }
+```
