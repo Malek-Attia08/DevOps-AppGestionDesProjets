@@ -146,11 +146,11 @@ pipeline {
 
                         echo "===== Start backend-app ====="
 
-                        docker run -d \
-                            --name backend-app \
-                            -p 8090:8080 \
-                            --link mysql:mysql \
-                            localhost:5000/backend-app:latest
+			docker run -d \
+			    --name backend-app \
+			    --network appgestion-network \
+			    -p 8090:8080 \
+			    localhost:5000/backend-app:latest
 
                         docker logout localhost:5000
                     '''
