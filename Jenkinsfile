@@ -1,6 +1,10 @@
 pipeline {
     agent any
 
+    environment {
+        PATH = "/home/malek/.nvm/versions/node/v22.23.3/bin:${env.PATH}"
+    }
+
     triggers {
         githubPush()
     }
@@ -24,7 +28,11 @@ pipeline {
         stage('Frontend - Install') {
             steps {
                 dir('frontend') {
-                    sh 'npm ci'
+                    sh '''
+                        node --version
+                        npm --version
+                        npm ci
+                    '''
                 }
             }
         }
